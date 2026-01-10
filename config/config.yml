@@ -1,19 +1,28 @@
 site:
-  base_url: "https://example.com"
-  allowed_domains: ["example.com"]
-  start_urls: ["https://example.com/events"]
-  start_paths: ["/events"]
+  base_url: "https://www.helixcenter.org"
+  allowed_domains: ["www.helixcenter.org", "helixcenter.org"]
+  start_urls:
+    - "https://www.helixcenter.org/roundtables/"
+    - "https://www.helixcenter.org/participants/"
+  start_paths: ["/roundtables/", "/participants/"]
   user_agent: "revweb/0.2.0 (+https://github.com/ORG/REPO)"
   respect_robots_txt: true
 
 crawl:
-  max_pages: 5000
-  max_depth: 8
+  max_pages: 2000
+  max_depth: 5
   include_query_params: false
   deny_patterns:
-    - "/login"
-    - "/account"
-    - ".*\\.(pdf|jpg|jpeg|png|gif|svg)$"
+    - "/wp-admin"
+    - "/wp-login"
+    - "/wp-content/uploads"
+    - "/feed"
+    - "/comment-page"
+    - ".*\\.(pdf|jpg|jpeg|png|gif|svg|mp3|mp4|wav)$"
+    - "/donate"
+    - "/contact"
+    - "/about/board-of-directors"
+    - "/about/executive-committee"
   emit_web_map_path: "./docs/web-map.md"
 
 scrape:
@@ -24,37 +33,46 @@ scrape:
   only_roundtable_ids: []
 
 patterns:
-  speaker_url: ".*/speakers?/[^/?#]+/?$"
-  roundtable_url: ".*/roundtables?/[^/?#]+/?$"
-  discussion_url: ".*/roundtables?/[^/?#]+/(discussions?|messages?)/.*$"
+  # Match individual participant pages like /participants/mark-epstein/
+  # Negative lookahead excludes:
+  #   - Year-based listing pages like /participants/2012/
+  #   - Single-letter alphabetical pages like /participants/A/
+  speaker_url: ".*/participants/(?!\\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$"
+  # Match individual roundtable pages like /roundtables/neurodiversity/
+  # Negative lookahead excludes:
+  #   - Year-based listing pages like /roundtables/2021/
+  #   - Single-letter alphabetical pages like /roundtables/A/
+  roundtable_url: ".*/roundtables/(?!\\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$"
+  # No discussion pages on this site
+  discussion_url: "^$"
 
 selectors:
   speaker:
     id_from_url: true
-    name: "h1::text, [data-speaker-name]::text"
-    bio: ".bio::text, [data-speaker-bio]::text, .speaker-bio *::text"
-    title: ".title::text, [data-speaker-title]::text"
-    organization: ".org::text, [data-speaker-org]::text"
-    headshot_url: "img.profile::attr(src), img[alt*='headshot']::attr(src)"
-    social_links: "a[href*='twitter.com'], a[href*='linkedin.com'], a[href*='github.com']"
+    name: "h1::text, .entry-title::text"
+    bio: ".entry-content p::text, article p::text, .wp-block-post-content p::text"
+    title: ".entry-content p:first-of-type::text"
+    organization: ""
+    headshot_url: ".entry-content img::attr(src), article img::attr(src), .wp-block-image img::attr(src)"
+    social_links: ""
 
   roundtable:
     id_from_url: true
-    title: "h1::text, [data-roundtable-title]::text"
-    description: ".description::text, [data-roundtable-description]::text, .roundtable-description *::text"
-    speaker_links: "a[href*='/speaker'], a[href*='/speakers/']"
+    title: "h1::text, .entry-title::text"
+    description: ".entry-content p::text, article p::text, .wp-block-post-content p::text"
+    speaker_links: "a[href*='/participants/']"
 
   discussion:
-    thread_title: "h1::text, [data-thread-title]::text"
-    posts: ".post, [data-post]"
-    post_id: "::attr(data-id), ::attr(id)"
-    author: ".author::text, [data-author]::text"
-    posted_at: "time::attr(datetime), time::text"
-    content: ".content *::text, [data-content] *::text, .message *::text"
-    permalink: "a.permalink::attr(href)"
+    thread_title: "h1::text"
+    posts: ".comment, .comment-body, li.comment"
+    post_id: "::attr(id)"
+    author: ".comment-author::text, .fn::text"
+    posted_at: ".comment-metadata time::attr(datetime), time::text"
+    content: ".comment-content p::text, .comment-content::text"
+    permalink: ".comment-metadata a::attr(href)"
 
 rendering:
-  enable_playwright: "auto"   # off | auto | on
+  enable_playwright: "off"
   playwright:
     timeout_ms: 30000
     wait_until: "networkidle"

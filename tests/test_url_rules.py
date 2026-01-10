@@ -120,3 +120,99 @@ class TestIsDenied:
         assert is_denied("https://example.com/logout", patterns) is True
         assert is_denied("https://example.com/admin", patterns) is True
         assert is_denied("https://example.com/public", patterns) is False
+
+
+class TestEntityUrlPatterns:
+    """Tests for entity URL pattern matching (speakers, roundtables).
+
+    These tests ensure URL patterns correctly match individual entity pages
+    while excluding aggregate listing pages (like year-based listings).
+    """
+
+    def test_speaker_pattern_matches_slug(self):
+        """Speaker pattern matches slug-based URLs."""
+        import re
+        pattern = re.compile(r".*/participants/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        assert pattern.match("https://example.com/participants/john-doe/")
+        assert pattern.match("https://example.com/participants/jane-smith")
+        assert pattern.match("https://example.com/participants/mark-epstein/")
+
+    def test_speaker_pattern_rejects_year_listing(self):
+        """Speaker pattern does NOT match year-based listing pages."""
+        import re
+        pattern = re.compile(r".*/participants/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        # Year-based listings should NOT match
+        assert not pattern.match("https://example.com/participants/2012/")
+        assert not pattern.match("https://example.com/participants/2023/")
+        assert not pattern.match("https://example.com/participants/2019")
+        assert not pattern.match("https://example.com/participants/2020/")
+
+    def test_roundtable_pattern_matches_slug(self):
+        """Roundtable pattern matches slug-based URLs."""
+        import re
+        pattern = re.compile(r".*/roundtables/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        assert pattern.match("https://example.com/roundtables/neurodiversity/")
+        assert pattern.match("https://example.com/roundtables/consciousness")
+        assert pattern.match("https://example.com/roundtables/the-future-of-ai/")
+
+    def test_roundtable_pattern_rejects_year_listing(self):
+        """Roundtable pattern does NOT match year-based listing pages."""
+        import re
+        pattern = re.compile(r".*/roundtables/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        # Year-based listings should NOT match
+        assert not pattern.match("https://example.com/roundtables/2012/")
+        assert not pattern.match("https://example.com/roundtables/2021/")
+        assert not pattern.match("https://example.com/roundtables/2018")
+        assert not pattern.match("https://example.com/roundtables/2023/")
+
+    def test_pattern_rejects_index_pages(self):
+        """Patterns do NOT match index/listing pages."""
+        import re
+        speaker_pattern = re.compile(r".*/participants/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        roundtable_pattern = re.compile(r".*/roundtables/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+
+        # Index pages should NOT match
+        assert not speaker_pattern.match("https://example.com/participants/")
+        assert not roundtable_pattern.match("https://example.com/roundtables/")
+
+    def test_pattern_rejects_query_params(self):
+        """Patterns do NOT match URLs with query parameters in path segment."""
+        import re
+        pattern = re.compile(r".*/participants/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        # Query params after slug should still match (query is stripped elsewhere)
+        assert pattern.match("https://example.com/participants/john-doe/")
+        # But query params should be handled correctly
+        assert not pattern.match("https://example.com/participants/john-doe?page=2")
+
+    def test_slug_with_numbers_still_matches(self):
+        """Slugs containing numbers (but not pure 4-digit years) still match."""
+        import re
+        speaker_pattern = re.compile(r".*/participants/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        roundtable_pattern = re.compile(r".*/roundtables/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+
+        # Mixed alphanumeric slugs should match
+        assert speaker_pattern.match("https://example.com/participants/speaker2023/")
+        assert speaker_pattern.match("https://example.com/participants/john-doe-2/")
+        assert roundtable_pattern.match("https://example.com/roundtables/ai-2024-edition/")
+        assert roundtable_pattern.match("https://example.com/roundtables/event123/")
+
+    def test_pattern_rejects_single_letter_alphabetical(self):
+        """Patterns do NOT match single-letter alphabetical listing pages."""
+        import re
+        speaker_pattern = re.compile(r".*/participants/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+        roundtable_pattern = re.compile(r".*/roundtables/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+
+        # Single uppercase letter should NOT match (alphabetical listings)
+        assert not speaker_pattern.match("https://example.com/participants/A/")
+        assert not speaker_pattern.match("https://example.com/participants/Z/")
+        assert not speaker_pattern.match("https://example.com/participants/M")
+        assert not roundtable_pattern.match("https://example.com/roundtables/B/")
+
+    def test_lowercase_slugs_still_match(self):
+        """Lowercase single-letter slugs still match (rare but valid)."""
+        import re
+        speaker_pattern = re.compile(r".*/participants/(?!\d{4}/?$)(?![A-Z]/?$)[^/?#]+/?$")
+
+        # Lowercase single letter should match (not the same as alphabetical listings)
+        assert speaker_pattern.match("https://example.com/participants/a/")
+        assert speaker_pattern.match("https://example.com/participants/x-ray/")
