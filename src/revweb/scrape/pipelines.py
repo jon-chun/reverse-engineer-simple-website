@@ -22,8 +22,9 @@ class OutputPipeline:
     # - stream discussion posts per-roundtable to separate CSVs
     # - generate docs/web-map.md from spider seen URLs
 
-    def __init__(self, cfg: AppConfig):
+    def __init__(self, cfg: AppConfig, crawler=None):
         self.cfg = cfg
+        self.crawler = crawler
         self.out_dir = Path(cfg.scrape.outputs_dir)
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -53,14 +54,24 @@ class OutputPipeline:
     @classmethod
     def from_crawler(cls, crawler):
         cfg: AppConfig = crawler.settings.get("APP_CONFIG")
-        return cls(cfg)
+        return cls(cfg, crawler=crawler)
 
-    def open_spider(self, spider):
+    def _get_spider(self, spider=None):
+        """Get spider instance from argument or crawler."""
+        if spider is not None:
+            return spider
+        if self.crawler is not None:
+            return self.crawler.spider
+        return None
+
+    def open_spider(self, spider=None):
+        spider = self._get_spider(spider)
         if getattr(spider, "mode", "") == "scrape":
             self._speakers_writer.open()
             self._roundtables_writer.open()
 
-    def close_spider(self, spider):
+    def close_spider(self, spider=None):
+        spider = self._get_spider(spider)
         mode = getattr(spider, "mode", "")
         if mode == "scrape":
             self._finalize_roundtable_speakers()
@@ -77,20 +88,21 @@ class OutputPipeline:
             speakers_list = [self.speakers[k] for k in sorted(self.speakers.keys())]
             write_speakers_md(Path("./docs/speakers.md"), speakers=speakers_list)
 
-        seen = getattr(spider, "seen_urls", set())
+        seen = getattr(spider, "seen_urls", set()) if spider else set()
         tree = build_path_tree(seen)
         outline = render_tree_md(tree)
 
-        counters = getattr(spider, "_counters", None)
+        counters = getattr(spider, "_counters", None) if spider else None
         stats = WebMapStats(
-            pages_visited=getattr(counters, "pages", len(seen)),
+            pages_visited=getattr(counters, "pages", len(seen)) if counters else len(seen),
             unique_urls=len(seen),
-            errors=getattr(counters, "errors", 0),
-            redirects=getattr(counters, "redirects", 0),
+            errors=getattr(counters, "errors", 0) if counters else 0,
+            redirects=getattr(counters, "redirects", 0) if counters else 0,
         )
         write_web_map(self.cfg.crawl.emit_web_map_path, base_url=self.cfg.site.base_url, outline_lines=outline, stats=stats)
 
-    def process_item(self, item: dict, spider):
+    def process_item(self, item: dict, spider=None):
+        spider = self._get_spider(spider)
         if getattr(spider, "mode", "") != "scrape":
             return item
 

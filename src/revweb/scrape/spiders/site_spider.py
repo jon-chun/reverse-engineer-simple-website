@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Any
 
 from scrapy.http import Request, Response
 from scrapy.linkextractors import LinkExtractor
@@ -48,7 +49,8 @@ class SiteSpider(Spider):
 
         self._link_extractor = LinkExtractor(allow_domains=self.allowed_domains)
 
-    def start_requests(self) -> Iterable[Request]:
+    async def start(self) -> AsyncIterator[Any]:
+        """Async start method for Scrapy 2.13+."""
         headers = {"User-Agent": self.cfg.site.user_agent}
         for u in self.start_urls:
             yield Request(u, headers=headers, callback=self.parse, dont_filter=True)
