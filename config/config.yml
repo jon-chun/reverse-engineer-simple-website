@@ -1,0 +1,63 @@
+site:
+  base_url: "https://example.com"
+  allowed_domains: ["example.com"]
+  start_urls: ["https://example.com/events"]
+  start_paths: ["/events"]
+  user_agent: "revweb/0.2.0 (+https://github.com/ORG/REPO)"
+  respect_robots_txt: true
+
+crawl:
+  max_pages: 5000
+  max_depth: 8
+  include_query_params: false
+  deny_patterns:
+    - "/login"
+    - "/account"
+    - ".*\\.(pdf|jpg|jpeg|png|gif|svg)$"
+  emit_web_map_path: "./docs/web-map.md"
+
+scrape:
+  outputs_dir: "./data"
+  speakers_csv: "speakers.csv"
+  roundtables_csv: "roundtables.csv"
+  discussions_csv_pattern: "discussion_{roundtable_id}.csv"
+  only_roundtable_ids: []
+
+patterns:
+  speaker_url: ".*/speakers?/[^/?#]+/?$"
+  roundtable_url: ".*/roundtables?/[^/?#]+/?$"
+  discussion_url: ".*/roundtables?/[^/?#]+/(discussions?|messages?)/.*$"
+
+selectors:
+  speaker:
+    id_from_url: true
+    name: "h1::text, [data-speaker-name]::text"
+    bio: ".bio::text, [data-speaker-bio]::text, .speaker-bio *::text"
+    title: ".title::text, [data-speaker-title]::text"
+    organization: ".org::text, [data-speaker-org]::text"
+    headshot_url: "img.profile::attr(src), img[alt*='headshot']::attr(src)"
+    social_links: "a[href*='twitter.com'], a[href*='linkedin.com'], a[href*='github.com']"
+
+  roundtable:
+    id_from_url: true
+    title: "h1::text, [data-roundtable-title]::text"
+    description: ".description::text, [data-roundtable-description]::text, .roundtable-description *::text"
+    speaker_links: "a[href*='/speaker'], a[href*='/speakers/']"
+
+  discussion:
+    thread_title: "h1::text, [data-thread-title]::text"
+    posts: ".post, [data-post]"
+    post_id: "::attr(data-id), ::attr(id)"
+    author: ".author::text, [data-author]::text"
+    posted_at: "time::attr(datetime), time::text"
+    content: ".content *::text, [data-content] *::text, .message *::text"
+    permalink: "a.permalink::attr(href)"
+
+rendering:
+  enable_playwright: "auto"   # off | auto | on
+  playwright:
+    timeout_ms: 30000
+    wait_until: "networkidle"
+
+docs:
+  tech_spec_path: "./docs/tech-spec-website.md"
