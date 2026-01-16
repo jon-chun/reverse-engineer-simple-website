@@ -1,0 +1,18 @@
+{
+  "unique_key": "https://www.helixcenter.org/roundtables/a-%e2%89%a0-b-%e2%86%92-taste-discernmen",
+  "url": "https://www.helixcenter.org/roundtables/a-%e2%89%a0-b-%e2%86%92-taste-discernmen/",
+  "method": "GET",
+  "payload": null,
+  "headers": {},
+  "user_data": {
+    "__crawlee": {
+      "state": 4,
+      "crawlDepth": 2
+    },
+    "depth": 2
+  },
+  "retry_count": 0,
+  "no_retry": false,
+  "loaded_url": null,
+  "handled_at": "2026-01-10 22:17:39.812939+00:00"
+}

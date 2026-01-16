@@ -1,99 +1,130 @@
-"""Integration tests for the output pipeline."""
+"""Integration tests for the output modules."""
 from __future__ import annotations
 
 import csv
-from unittest.mock import MagicMock
 
 import pytest
 
-from revweb.scrape.pipelines import OutputPipeline
+from revweb.scrape.output import OutputAggregator, OutputWriter, link_roundtable_speakers
 
 
-class MockSpider:
-    """Mock spider for pipeline testing."""
+class TestOutputAggregator:
+    """Tests for OutputAggregator."""
 
-    def __init__(self, mode: str = "scrape"):
-        self.mode = mode
-        self.seen_urls = set()
-        self._counters = MagicMock(pages=0, errors=0, redirects=0)
+    def test_add_speaker_new(self, sample_speaker_data):
+        """Adding a new speaker returns True."""
+        agg = OutputAggregator()
+        result = agg.add_speaker(sample_speaker_data.copy())
+        assert result is True
+        assert len(agg.speakers) == 1
+
+    def test_add_speaker_duplicate(self, sample_speaker_data):
+        """Adding duplicate speaker returns False and merges."""
+        agg = OutputAggregator()
+        agg.add_speaker(sample_speaker_data.copy())
+
+        updated = sample_speaker_data.copy()
+        updated["bio"] = "New bio"  # Should not override existing
+        result = agg.add_speaker(updated)
+
+        assert result is False
+        assert len(agg.speakers) == 1
+        # Original bio preserved
+        assert agg.speakers["john-doe"]["bio"] == "A test speaker bio."
+
+    def test_add_speaker_fills_missing(self, sample_speaker_data):
+        """Adding duplicate fills in missing fields."""
+        agg = OutputAggregator()
+
+        sparse = {"speaker_id": "john-doe", "name": "John Doe"}
+        agg.add_speaker(sparse)
+
+        agg.add_speaker(sample_speaker_data.copy())
+
+        # Bio should now be filled
+        assert agg.speakers["john-doe"]["bio"] == "A test speaker bio."
+
+    def test_add_roundtable_new(self, sample_roundtable_data):
+        """Adding a new roundtable returns True."""
+        agg = OutputAggregator()
+        result = agg.add_roundtable(sample_roundtable_data.copy())
+        assert result is True
+        assert len(agg.roundtables) == 1
+
+    def test_add_roundtable_with_speaker_links(self, sample_roundtable_data):
+        """Speaker links are tracked."""
+        agg = OutputAggregator()
+        links = ["https://example.com/speakers/john-doe"]
+        agg.add_roundtable(sample_roundtable_data.copy(), speaker_links=links)
+
+        assert "test-roundtable" in agg.roundtable_speaker_links
+        assert links[0] in agg.roundtable_speaker_links["test-roundtable"]
+
+    def test_add_discussion(self, sample_discussion_data):
+        """Discussions are stored by roundtable."""
+        agg = OutputAggregator()
+        result = agg.add_discussion(sample_discussion_data.copy())
+
+        assert result is True
+        discussions = agg.get_discussions("test-roundtable")
+        assert len(discussions) == 1
+
+    def test_get_speakers_sorted(self):
+        """get_speakers returns sorted list."""
+        agg = OutputAggregator()
+        agg.add_speaker({"speaker_id": "zach", "name": "Zach"})
+        agg.add_speaker({"speaker_id": "alice", "name": "Alice"})
+
+        speakers = agg.get_speakers()
+        assert speakers[0]["speaker_id"] == "alice"
+        assert speakers[1]["speaker_id"] == "zach"
 
 
-@pytest.fixture
-def pipeline_with_temp_dir(app_config, temp_dir):
-    """Create a pipeline with temporary output directory."""
-    app_config.scrape.outputs_dir = str(temp_dir)
-    app_config.crawl.emit_web_map_path = str(temp_dir / "web-map.md")
-    pipeline = OutputPipeline(app_config)
-    return pipeline, temp_dir
+class TestLinkRoundtableSpeakers:
+    """Tests for speaker-roundtable linking."""
+
+    def test_link_by_url(self, sample_speaker_data, sample_roundtable_data):
+        """Speakers are linked by matching profile URL."""
+        agg = OutputAggregator()
+        agg.add_speaker(sample_speaker_data.copy())
+
+        rt = sample_roundtable_data.copy()
+        rt["speaker_ids"] = ""
+        agg.add_roundtable(rt, speaker_links=["https://example.com/speakers/john-doe"])
+
+        link_roundtable_speakers(agg)
+
+        linked_rt = agg.roundtables["test-roundtable"]
+        assert "john-doe" in linked_rt["speaker_ids"]
+
+    def test_link_by_fuzzy_name(self):
+        """Speakers are linked by fuzzy name matching."""
+        agg = OutputAggregator()
+        agg.add_speaker({"speaker_id": "john-doe", "name": "John Doe", "profile_url": ""})
+        agg.add_roundtable(
+            {"roundtable_id": "rt1", "title": "RT1"},
+            speaker_links=["https://example.com/speakers/john-doe"]
+        )
+
+        link_roundtable_speakers(agg)
+
+        linked_rt = agg.roundtables["rt1"]
+        assert "john-doe" in linked_rt["speaker_ids"]
 
 
-class TestOutputPipelineIntegration:
-    """Integration tests for OutputPipeline."""
+class TestOutputWriter:
+    """Tests for OutputWriter."""
 
-    def test_speaker_processing(self, pipeline_with_temp_dir, sample_speaker_data):
-        """Speakers are processed and deduplicated."""
-        pipeline, temp_dir = pipeline_with_temp_dir
-        spider = MockSpider(mode="scrape")
+    def test_write_speakers_csv(self, app_config, temp_dir, sample_speaker_data):
+        """Speakers are written to CSV."""
+        app_config.scrape.outputs_dir = str(temp_dir)
+        writer = OutputWriter(app_config)
 
-        pipeline.open_spider(spider)
+        agg = OutputAggregator()
+        agg.add_speaker(sample_speaker_data.copy())
 
-        # Process same speaker twice
-        item1 = {"type": "speaker", "data": sample_speaker_data.copy()}
-        item2 = {"type": "speaker", "data": sample_speaker_data.copy()}
-        item2["data"]["bio"] = "Updated bio"  # Should not override existing
+        writer.write_all(agg)
 
-        pipeline.process_item(item1, spider)
-        pipeline.process_item(item2, spider)
-
-        pipeline.close_spider(spider)
-
-        # Check only one speaker in output
-        assert len(pipeline.speakers) == 1
-        # Original bio should be preserved
-        assert pipeline.speakers["john-doe"]["bio"] == "A test speaker bio."
-
-    def test_roundtable_processing(self, pipeline_with_temp_dir, sample_roundtable_data):
-        """Roundtables are processed and stored."""
-        pipeline, temp_dir = pipeline_with_temp_dir
-        spider = MockSpider(mode="scrape")
-
-        pipeline.open_spider(spider)
-
-        item = {"type": "roundtable", "data": sample_roundtable_data.copy(), "speaker_links": []}
-        pipeline.process_item(item, spider)
-
-        pipeline.close_spider(spider)
-
-        assert len(pipeline.roundtables) == 1
-        assert "test-roundtable" in pipeline.roundtables
-
-    def test_discussion_processing(self, pipeline_with_temp_dir, sample_discussion_data):
-        """Discussion posts are written to separate CSV files."""
-        pipeline, temp_dir = pipeline_with_temp_dir
-        spider = MockSpider(mode="scrape")
-
-        pipeline.open_spider(spider)
-
-        item = {"type": "discussion", "data": sample_discussion_data.copy()}
-        pipeline.process_item(item, spider)
-
-        pipeline.close_spider(spider)
-
-        # Check discussion CSV was created
-        discussion_file = temp_dir / "discussion_test-roundtable.csv"
-        assert discussion_file.exists()
-
-    def test_csv_output_format(self, pipeline_with_temp_dir, sample_speaker_data):
-        """CSV files are properly formatted."""
-        pipeline, temp_dir = pipeline_with_temp_dir
-        spider = MockSpider(mode="scrape")
-
-        pipeline.open_spider(spider)
-        item = {"type": "speaker", "data": sample_speaker_data.copy()}
-        pipeline.process_item(item, spider)
-        pipeline.close_spider(spider)
-
-        # Verify CSV structure
         speakers_csv = temp_dir / "speakers.csv"
         assert speakers_csv.exists()
 
@@ -105,90 +136,53 @@ class TestOutputPipelineIntegration:
         assert rows[0]["speaker_id"] == "john-doe"
         assert rows[0]["name"] == "John Doe"
 
-    def test_web_map_generation(self, pipeline_with_temp_dir):
-        """Web map is generated on spider close."""
-        pipeline, temp_dir = pipeline_with_temp_dir
-        spider = MockSpider(mode="crawl")
-        spider.seen_urls = {
+    def test_write_roundtables_csv(self, app_config, temp_dir, sample_roundtable_data):
+        """Roundtables are written to CSV."""
+        app_config.scrape.outputs_dir = str(temp_dir)
+        writer = OutputWriter(app_config)
+
+        agg = OutputAggregator()
+        agg.add_roundtable(sample_roundtable_data.copy())
+
+        writer.write_all(agg)
+
+        roundtables_csv = temp_dir / "roundtables.csv"
+        assert roundtables_csv.exists()
+
+        with open(roundtables_csv) as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        assert len(rows) == 1
+        assert rows[0]["roundtable_id"] == "test-roundtable"
+
+    def test_write_discussions_csv(self, app_config, temp_dir, sample_discussion_data):
+        """Discussions are written to separate CSV files."""
+        app_config.scrape.outputs_dir = str(temp_dir)
+        writer = OutputWriter(app_config)
+
+        agg = OutputAggregator()
+        agg.add_discussion(sample_discussion_data.copy())
+
+        writer.write_all(agg)
+
+        discussion_csv = temp_dir / "discussion_test-roundtable.csv"
+        assert discussion_csv.exists()
+
+    def test_write_web_map(self, app_config, temp_dir):
+        """Web map is written correctly."""
+        app_config.scrape.outputs_dir = str(temp_dir)
+        app_config.crawl.emit_web_map_path = str(temp_dir / "web-map.md")
+        writer = OutputWriter(app_config)
+
+        seen_urls = {
             "https://example.com/speakers/john",
             "https://example.com/roundtables/test",
         }
 
-        pipeline.open_spider(spider)
-        pipeline.close_spider(spider)
+        writer.write_web_map(seen_urls, pages_visited=2)
 
         web_map = temp_dir / "web-map.md"
         assert web_map.exists()
         content = web_map.read_text()
         assert "speakers" in content or "roundtables" in content
-
-    def test_speaker_roundtable_linking(self, pipeline_with_temp_dir, sample_speaker_data, sample_roundtable_data):
-        """Speakers are linked to roundtables correctly."""
-        pipeline, temp_dir = pipeline_with_temp_dir
-        spider = MockSpider(mode="scrape")
-
-        pipeline.open_spider(spider)
-
-        # Add speaker
-        speaker_item = {"type": "speaker", "data": sample_speaker_data.copy()}
-        pipeline.process_item(speaker_item, spider)
-
-        # Add roundtable with speaker link
-        rt_item = {
-            "type": "roundtable",
-            "data": {
-                "roundtable_id": "test-rt",
-                "title": "Test RT",
-                "description": "Test",
-                "roundtable_url": "https://example.com/roundtables/test-rt",
-                "speaker_ids": "",
-                "speakers_md_link": None,
-            },
-            "speaker_links": ["https://example.com/speakers/john-doe"],
-        }
-        pipeline.process_item(rt_item, spider)
-
-        pipeline.close_spider(spider)
-
-        # Check speaker was linked
-        rt = pipeline.roundtables.get("test-rt")
-        assert rt is not None
-        assert "john-doe" in rt.get("speaker_ids", "")
-
-    def test_crawl_mode_no_csv(self, pipeline_with_temp_dir):
-        """In crawl mode, CSV writers are not opened."""
-        pipeline, temp_dir = pipeline_with_temp_dir
-        spider = MockSpider(mode="crawl")
-
-        pipeline.open_spider(spider)
-        pipeline.close_spider(spider)
-
-        # CSV files should not have data (or may not exist)
-        speakers_csv = temp_dir / "speakers.csv"
-        if speakers_csv.exists():
-            with open(speakers_csv) as f:
-                content = f.read()
-            # Should only have header or be empty
-            lines = content.strip().split("\n")
-            assert len(lines) <= 1  # At most header line
-
-    def test_only_roundtable_ids_filter(self, app_config, temp_dir, sample_discussion_data):
-        """Only specified roundtable IDs are processed when filter is set."""
-        app_config.scrape.outputs_dir = str(temp_dir)
-        app_config.scrape.only_roundtable_ids = ["allowed-rt"]
-        app_config.crawl.emit_web_map_path = str(temp_dir / "web-map.md")
-
-        pipeline = OutputPipeline(app_config)
-        spider = MockSpider(mode="scrape")
-
-        pipeline.open_spider(spider)
-
-        # This should be filtered out
-        item = {"type": "discussion", "data": sample_discussion_data.copy()}
-        pipeline.process_item(item, spider)
-
-        pipeline.close_spider(spider)
-
-        # Discussion file for test-roundtable should not exist
-        discussion_file = temp_dir / "discussion_test-roundtable.csv"
-        assert not discussion_file.exists()

@@ -1,0 +1,18 @@
+{
+  "unique_key": "https://www.helixcenter.org/participants/c/www.chichilnisky.com",
+  "url": "https://www.helixcenter.org/participants/C/www.chichilnisky.com",
+  "method": "GET",
+  "payload": null,
+  "headers": {},
+  "user_data": {
+    "__crawlee": {
+      "state": 6,
+      "crawlDepth": 2
+    },
+    "depth": 2
+  },
+  "retry_count": 0,
+  "no_retry": false,
+  "loaded_url": null,
+  "handled_at": "2026-01-10 22:19:36.215207+00:00"
+}

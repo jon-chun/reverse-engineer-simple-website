@@ -1,0 +1,18 @@
+{
+  "unique_key": "https://www.helixcenter.org/roundtables/the-topology-of-fear",
+  "url": "https://www.helixcenter.org/roundtables/the-topology-of-fear/",
+  "method": "GET",
+  "payload": null,
+  "headers": {},
+  "user_data": {
+    "__crawlee": {
+      "state": 4,
+      "crawlDepth": 2
+    },
+    "depth": 2
+  },
+  "retry_count": 0,
+  "no_retry": false,
+  "loaded_url": null,
+  "handled_at": "2026-01-10 22:18:05.950508+00:00"
+}

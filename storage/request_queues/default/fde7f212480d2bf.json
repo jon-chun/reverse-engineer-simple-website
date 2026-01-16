@@ -1,0 +1,18 @@
+{
+  "unique_key": "https://www.helixcenter.org/forums/forum/general",
+  "url": "https://www.helixcenter.org/forums/forum/general/",
+  "method": "GET",
+  "payload": null,
+  "headers": {},
+  "user_data": {
+    "__crawlee": {
+      "state": 4,
+      "crawlDepth": 5
+    },
+    "depth": 5
+  },
+  "retry_count": 0,
+  "no_retry": false,
+  "loaded_url": null,
+  "handled_at": "2026-01-10 22:20:53.796891+00:00"
+}

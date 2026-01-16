@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from scrapy.http import Response
+from parsel import Selector
 
 from ...models import DiscussionPost
 from .common import abs_url, join_text, normalize_whitespace
 
 
 def extract_discussion_posts(
-    response: Response,
+    selector: Selector,
+    url: str,
     *,
     roundtable_id: str,
     thread_title_sel: str,
@@ -18,10 +19,10 @@ def extract_discussion_posts(
     content_sel: str,
     permalink_sel: str,
 ) -> list[DiscussionPost]:
-    thread_title = normalize_whitespace(join_text(response.css(thread_title_sel).getall()))
+    thread_title = normalize_whitespace(join_text(selector.css(thread_title_sel).getall()))
     out: list[DiscussionPost] = []
 
-    posts = response.css(posts_sel)
+    posts = selector.css(posts_sel)
     idx = 0
     for post in posts:
         idx += 1
@@ -34,7 +35,7 @@ def extract_discussion_posts(
         content = normalize_whitespace(join_text(post.css(content_sel).getall()))
 
         permalink = post.css(permalink_sel).get() if permalink_sel else None
-        permalink = abs_url(str(response.url), permalink) if permalink else str(response.url)
+        permalink = abs_url(url, permalink) if permalink else url
 
         discussion_id = post_id or f"{roundtable_id}-{idx}"
 

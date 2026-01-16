@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name="Your Name", email="you@example.com"}]
-keywords = ["scraping", "scrapy", "playwright", "crawler", "reverse-engineering", "cli"]
+keywords = ["scraping", "crawlee", "parsel", "crawler", "reverse-engineering", "cli"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
@@ -24,8 +24,8 @@ dependencies = [
   "pyyaml>=6.0.1",
   "python-dateutil>=2.9.0",
   "rapidfuzz>=3.6.0",
-  "scrapy>=2.11.0",
-  "scrapy-playwright>=0.0.34",
+  "crawlee[parsel]>=0.5.0",
+  "httpx>=0.28.0",
 ]
 
 [project.optional-dependencies]

@@ -6,8 +6,8 @@ import typer
 from rich.console import Console
 
 from .config import ensure_paths, load_config
+from .crawl.runner import run as run_crawl
 from .logging import configure_logging
-from .scrape.runner import run as run_scrapy
 from .spec.website_rebuild import generate as generate_spec
 
 app = typer.Typer(add_completion=False, help="Crawl and scrape websites into CSV and docs artifacts for reverse engineering.")
@@ -24,7 +24,8 @@ def crawl(
     cfg = load_config(config)
     ensure_paths(cfg)
     logger.info(f"Crawling site: {cfg.site.base_url}")
-    run_scrapy(cfg, mode="crawl", log_level="WARNING")
+    result = run_crawl(cfg, mode="crawl")
+    console.print(f"Visited {result.pages_visited} pages, {result.unique_urls} unique URLs")
     console.print(f"Wrote {cfg.crawl.emit_web_map_path}")
 
 
@@ -38,7 +39,8 @@ def scrape(
     cfg = load_config(config)
     ensure_paths(cfg)
     logger.info(f"Scraping site: {cfg.site.base_url}")
-    run_scrapy(cfg, mode="scrape", log_level="WARNING")
+    result = run_crawl(cfg, mode="scrape")
+    console.print(f"Visited {result.pages_visited} pages, {result.unique_urls} unique URLs")
     console.print(f"Wrote {Path(cfg.scrape.outputs_dir) / cfg.scrape.speakers_csv}")
     console.print(f"Wrote {Path(cfg.scrape.outputs_dir) / cfg.scrape.roundtables_csv}")
     console.print(f"Wrote discussions as {cfg.scrape.discussions_csv_pattern}")

@@ -1,0 +1,11 @@
+{
+  "id": "qG6vpo5AbZPyDmk2I",
+  "name": null,
+  "accessed_at": "2026-01-10 22:20:54.131880+00:00",
+  "created_at": "2026-01-10 22:16:35.101972+00:00",
+  "modified_at": "2026-01-10 22:20:54.131538+00:00",
+  "had_multiple_clients": false,
+  "handled_request_count": 1234,
+  "pending_request_count": 0,
+  "total_request_count": 1236
+}

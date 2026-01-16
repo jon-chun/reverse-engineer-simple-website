@@ -1,0 +1,18 @@
+{
+  "unique_key": "https://www.helixcenter.org/roundtables/tag/philosophical-divergence",
+  "url": "https://www.helixcenter.org/roundtables/tag/philosophical-divergence ",
+  "method": "GET",
+  "payload": null,
+  "headers": {},
+  "user_data": {
+    "__crawlee": {
+      "state": 4,
+      "crawlDepth": 3
+    },
+    "depth": 3
+  },
+  "retry_count": 0,
+  "no_retry": false,
+  "loaded_url": null,
+  "handled_at": "2026-01-10 22:20:50.381699+00:00"
+}

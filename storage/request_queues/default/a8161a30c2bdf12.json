@@ -1,0 +1,18 @@
+{
+  "unique_key": "https://www.helixcenter.org/roundtables/tag/cocktail-benefit-reception",
+  "url": "https://www.helixcenter.org/roundtables/tag/cocktail-benefit-reception ",
+  "method": "GET",
+  "payload": null,
+  "headers": {},
+  "user_data": {
+    "__crawlee": {
+      "state": 4,
+      "crawlDepth": 3
+    },
+    "depth": 3
+  },
+  "retry_count": 0,
+  "no_retry": false,
+  "loaded_url": null,
+  "handled_at": "2026-01-10 22:20:30.133090+00:00"
+}
